@@ -1,0 +1,65 @@
+import requests, html, json
+from datetime import date
+from datetime import timedelta
+from twilio.rest import Client
+
+
+STOCK = YOUR_STOCK
+COMPANY_NAME = NAME
+account_sid = ACCOUNT_SID
+auth_token = AUTH_TOKEN
+
+##Using https://www.alphavantage.co
+# Checking if STOCK price increase/decreases by 5% between yesterday and the day before yesterday
+api_key = API_KEY
+parameter = {'apikey': api_key, 'interval': '60min', 'symbol': STOCK, 'function': 'TIME_SERIES_INTRADAY'}
+stock_api = requests.get(url='https://www.alphavantage.co/query', params=parameter)
+
+# Get today's date
+today = date.today()
+
+# Yesterday date
+yesterday = today - timedelta(days=1)
+
+
+day_before_yesterday = today-timedelta(days=2)
+yesterday_string = str(yesterday) + ' 20:00:00'
+day_before_yesterday_string = str(day_before_yesterday) + ' 20:00:00'
+yesterday_closing = float(stock_api.json()["Time Series (60min)"][yesterday_string]['4. close'])
+day_before_yesterday_closing = float(stock_api.json()["Time Series (60min)"][day_before_yesterday_string]['4. close'])
+percent_change = abs(yesterday_closing-day_before_yesterday_closing)/yesterday_closing*100
+
+##Using https://newsapi.org
+# Printing first 3 news pieces for the COMPANY_NAME.
+if percent_change == 5:
+    news_api_key = YOUR_API_KEY
+    parameter1 = {'q': COMPANY_NAME, 'apikey': news_api_key}
+    news = requests.get(url='https://newsapi.org/v2/everything', params=parameter1)
+    list = []
+    for item in range(3):
+        list.append(f"Headline: {news.json()['articles'][item]['title']}")
+        list.append(f"Brief: {news.json()['articles'][item]['description']}")
+
+
+##Using https://www.twilio.com
+# Sending a seperate message with the percentage change and each article's title and description to your phone number.
+    if yesterday_closing-day_before_yesterday_closing > 0:
+        client = Client(account_sid, auth_token)
+        message = client.messages \
+            .create(
+            body=f'{STOCK}: 🔺{percent_change}%\n{list[0]}\n{list[1]}',
+            from_=FROM_NUMBER,
+            to=YOUR_NUMBER
+            )
+        print(message.status)
+    else:
+        client = Client(account_sid, auth_token)
+        message = client.messages \
+        .create(
+        body=f'{STOCK}: 🔻{percent_change}%\n{list[0]}\n{list[1]}',
+        from_=FROM_NUMBER,
+        to=YOUR_NUMBER
+            )
+        print(message.status)
+
+
